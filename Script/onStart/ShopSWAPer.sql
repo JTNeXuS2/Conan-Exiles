@@ -1,5 +1,6 @@
 --exchanger through the chest, when the server is rebooted, changes the contents in the chest with the name "==SWAP==" (without "), works without mods
-
+-- https://discord.gg/admins-united-conan-278275567088828417
+-- https://discord.com/channels/278275567088828417/1262113359797551194/1262113359797551194
 UPDATE item_inventory -- replace 1000 stick to 1000 stone
 SET template_id = 0, data = X'01000000efbeadde0fcafebacafbcfabcdab214300000000000000001e0000002f5363726970742f436f6e616e53616e64626f782e47616d654974656d000c00000047616d654974656d5f32310000112700000300000001000000e803000016000000f3c89366410000000000000000000000' -- HEX full string item type, count
 WHERE owner_id = (
