@@ -1,4 +1,4 @@
-#### more info / Больше информации
+#### more info \ Больше информации
 ##### [Рус Admins Discord](https://discord.gg/tf2KeZF8RF)
 ##### [Eng Admins Discord](https://discord.gg/admins-united-conan-278275567088828417)
 
