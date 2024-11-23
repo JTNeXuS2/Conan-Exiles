@@ -22,6 +22,18 @@ fill via notepad config in
 
     .env
 
+edit kits in CCC_DataBase.db via DB Browser for SQLite
+
+
+support syntax kit command
+
+ combo line command (recommended)
+
+    spawnitem 1000 1|spawnitem 1002 2|spawnitem 1003 3|testfifo 0 Выдано
+multi line command
+
+    TeleportPlayer 0 0 0
+    testfifo 0 Ready
 Launche via 
 
     !Start.cmd
