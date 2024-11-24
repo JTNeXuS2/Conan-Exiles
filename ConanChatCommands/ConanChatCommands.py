@@ -212,7 +212,7 @@ def chat_to_dis(player_nick, message):
     message = truncate_message(message)
     parts = message.split("^^&&", 1)
     text = parts[1] if len(parts) > 1 else parts[0]
-    formatted_message = f"**{server_name}**:**{player_nick}**: {text}"
+    formatted_message = f"**{server_name}** **{player_nick}**: {text}"
     data = {"content": formatted_message}
     response = requests.post(chat_web_hook, json=data)
     if response.status_code != 204:
