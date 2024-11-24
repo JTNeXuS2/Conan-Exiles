@@ -19,7 +19,7 @@ import socket
 load_dotenv()
 kits = []
 cases_kits = []
-nick=home_name=kit_name=''
+nick=home_name=kit_name=timer=get_kit=''
 
 db_name = os.getenv('db_name', 'CCC_DataBase.db')
 log_dir = os.getenv('log_dir', r'C:\CONAN\Server\Saved\Logs')
@@ -31,9 +31,11 @@ prefix = os.getenv('prefix', '!')
 #chat_web_hook = None
 
 def loc(arg):
-    global nick, kit_name, home_name
+    global nick, kit_name, home_name, timer, get_kit
     messages = {
-        "welcome_back": f' \\"          {nick}          " С возвращением!',
+        "welcome_back": f' \\"				{nick}				" С возвращением!',
+        "cooldown": f'\\"				кулдаун {timer}				" "{get_kit}" уже использован.',
+        "for_single_used": f' \\"							{get_kit}							" Для разового использования!',
         "return_notfound": f"Точка возвращения {home_name} не найдена.",
         "bed_notfound": f"Ошибка Не найдена кровать или подстилка!",
         "kit_end": f"{kit_name} Кит выполнен.",
@@ -242,7 +244,7 @@ def process_line(line):
             chat_to_dis(nick, message)
         ### Find Call kit
         if message.startswith(f'{prefix}'):
-            global kits
+            global kits, get_kit
             get_kit = ''
             get_kit = f"{message.split(f'{prefix}')[-1]}"
             print(f" >>>>> Поиск кита {get_kit}")
@@ -258,12 +260,18 @@ def process_line(line):
 
             #print(f"ALL KITS>>\n{kits}")
             for kit in kits:
-                if f"{prefix}{kit[1]}" == f"{prefix}{get_kit}":# or f"{get_kit}" in cases_kits:
+                if f"{prefix}{kit[1]}" == f"{prefix}{get_kit}": # or f"{get_kit}" in cases_kits:
                     platformid = player_match.group(1)
                     in_cooldown, result = check_cooldown(platformid, get_kit)
-                    #print(f" >>RETURN>> in_cooldown: {in_cooldown} result: {result}")
+
+                    ### Check  useonce
+                    if kit[4] is not None and kit[4].strip() != "0":
+                        print(f"Kit name {get_kit} for single used and already executed..")
+                        send_notify('1', loc("for_single_used"), get_player_index(platformid))
+                        break
+                    ### WORK SKIPPING
                     if in_cooldown and result:
-                        ### WORK SKIPPING
+                        global timer
                         print(f"User {nick} has already executed the kit today, skipping.\n")
 
                         target_time = datetime.strptime(result[4], '%Y-%m-%d %H:%M:%S')
@@ -271,14 +279,10 @@ def process_line(line):
                         days, hours, remainder = time_difference.days, *divmod(time_difference.seconds, 3600)
                         minutes, seconds = divmod(remainder, 60)
                         timer = f"{days}д:{hours:02}ч:{minutes:02}м:{seconds:02}с" if days > 0 or hours > 0 else f"{minutes:02}м:{seconds:02}с"
-
-                        message = f'\\"				кулдаун {timer}				" "{get_kit}" уже использован.'
-                        player_idx = get_player_index(platformid)
-                        send_notify('1', message, player_idx)
-						
+                        send_notify('1', loc("cooldown"), get_player_index(platformid))
                         return
+                    ### WORK
                     if platformid:
-                        ### WORK
                         process_kits(nick, platformid, kit, get_kit)
                     else:
                         print(f"Account ID {platformid} not found for process_kits.")
