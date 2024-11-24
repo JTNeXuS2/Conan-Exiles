@@ -16,17 +16,19 @@ from valve.rcon import RCON, RCONMessageError, RCONAuthenticationError, RCONComm
 import socket
 #import valve.source.a2s
 
-load_dotenv()
 kits = []
 cases_kits = []
 nick=home_name=kit_name=timer=get_kit=''
 
+load_dotenv()
+env_file_path = '.env'
 db_name = os.getenv('db_name', 'CCC_DataBase.db')
 log_dir = os.getenv('log_dir', r'C:\CONAN\Server\Saved\Logs')
 server_name = os.getenv('server_name', 'Server Name In Discord')
 rcon_ip, rcon_port = os.getenv('rcon', '127.0.0.1:25000').split(':')
 rcon_pass = os.getenv('rcon_pass', 'RconPassword')
 chat_web_hook = os.getenv('chat_web_hook', None)
+hook_syntax = os.getenv('hook_syntax', '**{server_name}** **{player_nick}**: {text}')
 prefix = os.getenv('prefix', '!')
 #chat_web_hook = None
 
@@ -107,10 +109,9 @@ def check_db():
 
     conn.commit()
 
-    # Создание уникального индекса для комбинации колонок, если он не существует
     for table_name, structure in database_structure.items():
         unique_columns = structure['unique']
-        if len(unique_columns) > 1:  # Проверяем, что есть более одной колонки для уникального индекса
+        if len(unique_columns) > 1:
             index_name = f"idx_{table_name}_" + "_".join(unique_columns)
             cursor.execute(f"""
                 CREATE UNIQUE INDEX IF NOT EXISTS {index_name} ON {table_name} ({', '.join(unique_columns)})
@@ -155,14 +156,12 @@ async def watch_log_file(directory):
 
     file_position = os.path.getsize(log_file_path)
     print("Conan Chat Commands watch log start!\n")
+    last_modified_time = os.path.getmtime(env_file_path)
     ### MAIN Cycle
     while True:
         try:
-            # Проверка наличия update.py
             update_file_path = os.path.join('update.py')
-            #print(f"update_file_path {update_file_path}")
             if os.path.exists(update_file_path):
-                # Переименование update.py в ConanChatCommands.py
                 target_file_path = os.path.join('ConanChatCommands.py')
                 shutil.move(update_file_path, target_file_path)
                 print("Updated ConanChatCommands.py from update.py. Restarting...")
@@ -170,7 +169,13 @@ async def watch_log_file(directory):
                 #os.execv(sys.executable, ['python'] + sys.argv)
                 sys.exit(0)
 
-            # Проверка на случай, если файл был очищен
+            # Проверка на изменения в конфигурационном файле
+            current_modified_time = os.path.getmtime(env_file_path)
+            if current_modified_time != last_modified_time:
+                print("Configuration file has been changed. Reloading...")
+                sys.exit(0)
+
+            # Проверка на случай, если лог файл был очищен
             current_size = os.path.getsize(log_file_path)
             if current_size < file_position:
                 print("Log file has been cleared. Resetting file position.")
@@ -189,15 +194,6 @@ async def watch_log_file(directory):
             await asyncio.sleep(5)
             continue
         await asyncio.sleep(1)
-def find_latest_file(directory):
-    log_file_path = os.path.join(directory, 'ConanSandbox.log')
-    try:
-        if os.path.isfile(log_file_path):
-            return log_file_path
-    except Exception as e:
-        print(f"Error checking log file {log_file_path}: {e}")
-    print(f'Log {log_file_path} NOT FOUND.')
-    return None
 
 def chat_to_dis(player_nick, message):
     def escape_markdown(text):
@@ -212,7 +208,7 @@ def chat_to_dis(player_nick, message):
     message = truncate_message(message)
     parts = message.split("^^&&", 1)
     text = parts[1] if len(parts) > 1 else parts[0]
-    formatted_message = f"**{server_name}** **{player_nick}**: {text}"
+    formatted_message = hook_syntax.format(server_name=server_name, player_nick=player_nick, text=text)
     data = {"content": formatted_message}
     response = requests.post(chat_web_hook, json=data)
     if response.status_code != 204:
@@ -257,7 +253,6 @@ def process_line(line):
                 (None,	'home bed',	None,	'0',	None)
             ]
             kits.extend(cases_kits)
-
             #print(f"ALL KITS>>\n{kits}")
             for kit in kits:
                 if f"{prefix}{kit[1]}" == f"{prefix}{get_kit}": # or f"{get_kit}" in cases_kits:
@@ -300,12 +295,9 @@ def process_kits(nick, platformid, kit, get_kit):
     global home_name, kit_name
     kit_name = get_kit
     #print(f'PROCCESS_KITS >> {kit}')
-	# метод (устарело) разбиение команд кита для поштучного ввода
-    #command_list = kit[2].strip().replace('{steamid}', platformid).split("\r\n") if kit[2] is not None else ''
     command_string = kit[2].strip() if kit[2] is not None else ''
     command_string = command_string.replace('{steamid}', platformid).replace('{kit_name}', kit_name)
     command_list = command_string.split("\r\n")
-    # метод (новый) для ввода всех команд за раз
     command_list = '|'.join(command_list)
     cooldown = int(kit[3]) if kit[3] else 1440
     cooldown_date = (today + timedelta(minutes=cooldown)).strftime('%Y-%m-%d %H:%M:%S')
@@ -313,12 +305,10 @@ def process_kits(nick, platformid, kit, get_kit):
     print(f" >>KIT>> {kit}")
     print(f" >>Name>> {kit_name} CD>> {cooldown} Date>> {cooldown_date}")
 
-    # Формируем полное имя команды cases_kits
     match f"{kit_name}":
         case "help":
             print(f" >> CASE {kit_name}")
 
-            #message = f"Это первая строка Help \n Это строка с переносом \\n \rЭта строка с переносом \\r"
             print("send_notify_button")
             if any(char.isspace() for char in nick):
                 message = loc("help")
