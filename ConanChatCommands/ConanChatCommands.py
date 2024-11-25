@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import shutil
 import sys
 
+import mcrcon
 from valve.rcon import RCON, RCONMessageError, RCONAuthenticationError, RCONCommunicationError, RCONMessage, RCONTimeoutError
 import socket
 #import valve.source.a2s
@@ -26,6 +27,7 @@ db_name = os.getenv('db_name', 'CCC_DataBase.db')
 log_dir = os.getenv('log_dir', r'C:\CONAN\Server\Saved\Logs')
 server_name = os.getenv('server_name', 'Server Name In Discord')
 rcon_ip, rcon_port = os.getenv('rcon', '127.0.0.1:25000').split(':')
+rcon_type = os.getenv('rcon_type', 'mcrcon')
 rcon_pass = os.getenv('rcon_pass', 'RconPassword')
 chat_web_hook = os.getenv('chat_web_hook', None)
 hook_syntax = os.getenv('hook_syntax', '**{server_name}** **{player_nick}**: {text}')
@@ -132,20 +134,29 @@ def send_rcon_command(host, port, rcon_password, command, raise_errors=False, nu
         port = int(port)
     except ValueError:
         return "Port connection Error"
-    for attempt in range(num_retries):
+
+    if rcon_type == 'mcrcon':
         try:
-            with RCON((host, port), rcon_password, timeout=timeout) as rcon:
-                RCONMessage.ENCODING = "utf-8"
-                return rcon(command)
-        except KeyError:
-            raise RconError('Incorrect rcon password')
-        except (socket.error, socket.timeout, RCONMessageError, RCONAuthenticationError) as e:
-            if attempt == num_retries - 1:
-                if raise_errors:
-                    raise RconError(str(e))
-                return "Connection error"
-            print("Repeat connect to RCON")
-    return "Max retries reached"
+            with mcrcon.MCRcon(host, rcon_password, port) as mcr:
+                return mcr.command(command)
+        except Exception as e:
+            print("Rcon error:", e)
+    else:
+        for attempt in range(num_retries):
+            try:
+                with RCON((host, port), rcon_password, timeout=timeout) as rcon:
+                    RCONMessage.ENCODING = "utf-8"
+                    return rcon(command)
+            except KeyError:
+                raise RconError('Incorrect rcon password')
+            except (socket.error, socket.timeout, RCONMessageError, RCONAuthenticationError) as e:
+                if attempt == num_retries - 1:
+                    if raise_errors:
+                        raise RconError(str(e))
+                    return "Connection error"
+                print("Repeat connect to RCON")
+                
+        return "Max retries reached"
 
 ### MAIN Function
 async def watch_log_file(directory):
