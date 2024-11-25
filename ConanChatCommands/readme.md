@@ -12,6 +12,7 @@ execute
 
     python.exe -m pip install --upgrade pip
     pip install python-valve
+    pip install mcrcon
     pip install python-dotenv
     pip install mysql-connector
 or run 
