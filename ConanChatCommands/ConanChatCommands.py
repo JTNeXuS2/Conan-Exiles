@@ -160,9 +160,10 @@ def send_rcon_command(host, port, rcon_password, command, raise_errors=False, nu
 
 ### MAIN Function
 async def watch_log_file(directory):
-    log_file_path = os.path.join(directory, 'ConanSandbox.log')
+    absolute_directory = os.path.abspath(directory)
+    log_file_path = os.path.join(absolute_directory, 'ConanSandbox.log')
     if not os.path.isfile(log_file_path):
-        print("No log file found. Exiting!!!.")
+        print(f"No log file found. {log_file_path}\n Exiting!!!.")
         return
 
     file_position = os.path.getsize(log_file_path)
