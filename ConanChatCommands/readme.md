@@ -35,7 +35,7 @@ multi line command
 
     TeleportPlayer 0 0 0
     testfifo 0 Ready
-Launche via 
+Launch via
 
     !Start.cmd
 
