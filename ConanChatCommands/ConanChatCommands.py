@@ -25,6 +25,7 @@ load_dotenv()
 env_file_path = '.env'
 db_name = os.getenv('db_name', 'CCC_DataBase.db')
 log_dir = os.getenv('log_dir', r'C:\CONAN\Server\Saved\Logs')
+list_badwords = os.path.abspath(os.getenv('list_badwords', r'C:\conan\CCC\badwords.txt'))
 server_name = os.getenv('server_name', 'Server Name In Discord')
 rcon_ip, rcon_port = os.getenv('rcon', '127.0.0.1:25000').split(':')
 rcon_type = os.getenv('rcon_type', 'mcrcon')
@@ -33,6 +34,8 @@ chat_web_hook = os.getenv('chat_web_hook', None)
 hook_syntax = os.getenv('hook_syntax', '**{server_name}** **{player_nick}**: {text}')
 prefix = os.getenv('prefix', '!')
 #chat_web_hook = None
+
+
 
 def loc(arg):
     global nick, kit_name, home_name, timer, get_kit
@@ -129,7 +132,7 @@ def get_kits():
     kits = cursor.fetchall()
     conn.close()
 
-def send_rcon_command(host, port, rcon_password, command, raise_errors=False, num_retries=4, timeout=3):
+def send_rcon_command(host, port, rcon_password, command, raise_errors=False, num_retries=4, timeout=5):
     try:
         port = int(port)
     except ValueError:
@@ -207,7 +210,24 @@ async def watch_log_file(directory):
             continue
         await asyncio.sleep(1)
 
-def chat_to_dis(player_nick, message):
+def bad_words(player_nick, text, platformid):
+    with open(list_badwords, encoding="utf-8") as f:
+        #bad_phrases = [line.strip().lower() for line in f if line.strip()]
+        bad_phrases = set(line.strip().lower() for line in f if line.strip())
+        
+    #text_lower = text.lower()
+    text_lower = re.findall(r'\b\w+\b', text.lower())
+    for phrase in bad_phrases:
+        if phrase in text_lower:
+            formatted_message = f"WARN: **{player_nick}** ({platformid}) `{phrase}` ```{text}```"
+            data = {"content": formatted_message}
+            response = requests.post(chat_web_hook, json=data)
+            if response.status_code != 204:
+                print(f"Error sending message to Discord: {response.status_code} - {response.text}")
+            return True, phrase
+    return False, None
+
+def chat_to_dis(player_nick, message, platformid):
     def escape_markdown(text):
         markdown_chars = ['\\', '*', '_', '~', '`', '>', '|']
         for char in markdown_chars:
@@ -215,6 +235,11 @@ def chat_to_dis(player_nick, message):
         return text
     def truncate_message(text, max_length=2000):
         return text if len(text) <= max_length else text[:max_length-3] + '...'
+    found, bad_word = bad_words(player_nick, message, platformid)
+    if found:
+        send_notify_button("Ругань в чате!\n" + bad_word, get_player_index(platformid), player_nick)
+        return
+
     player_nick = escape_markdown(player_nick)
     message = escape_markdown(message)
     message = truncate_message(message)
@@ -249,7 +274,7 @@ def process_line(line):
 
         ### Send message to discord
         if chat_web_hook is not None:
-            chat_to_dis(nick, message)
+            chat_to_dis(nick, message, player_match.group(1))
         ### Find Call kit
         if message.startswith(f'{prefix}'):
             global kits, get_kit
